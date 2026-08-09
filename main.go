@@ -1,8 +1,10 @@
 package main
 
-import "os"
+import (
+	"fmt"
+)
 
 func main() {
-	switch os.Args[1] {
-	}
+	ap, _ := GetAssetsPath()
+	fmt.Printf("Assets Path: %s", ap)
 }
