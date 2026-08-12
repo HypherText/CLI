@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -16,6 +15,5 @@ func main() {
 		builder.workdir, _ = os.Getwd()
 	}
 	builder.workdir, _ = filepath.Abs(builder.workdir)
-	fmt.Println(builder.workdir)
 	builder.BuildAssets()
 }

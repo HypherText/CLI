@@ -81,7 +81,7 @@ func (b *Builder) GetCachePath() (string, error) {
 
 func (b *Builder) LocateAssets(root string) ([]Asset, error) {
 	assets := []Asset{}
-	importRegex := regexp.MustCompile(`(?s)<\?(?:|=|php) .+?\$import\( *"(.+?)" *\)`)
+	importRegex := regexp.MustCompile(`(?s)<\?(?:|=|php) .*?import\( *"(.+?)" *\)`)
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -121,7 +121,6 @@ func (b *Builder) BuildAssets() {
 		os.Exit(1)
 	}
 
-	fmt.Println(appPath)
 	assets, err := b.LocateAssets(appPath)
 	if err != nil {
 		fmt.Println(err)
@@ -155,32 +154,47 @@ func (b *Builder) BuildAssets() {
 		Sourcemap:         api.SourceMapExternal,
 	})
 
-	fmt.Printf("Found assets %v", assets)
 	for _, file := range result.OutputFiles {
 		fileName := filepath.Base(file.Path)
 		fullExt := fileName[strings.Index(fileName, "."):]
-		fmt.Println(fullExt)
-		if fullExt == ".module.css.map" {
-			GenerateStubs(file.Path, result)
+		if fullExt == ".module.css" {
+			if _, err = os.Stat(file.Path + ".map"); os.IsNotExist(err) {
+				fmt.Printf("Warning: Found CSS module with no SourceMap, skipping.")
+				continue
+			}
+			GenerateStubs(file.Path)
 		}
 	}
 }
 
-func GenerateStubs(mapPath string, result api.BuildResult) {
-	fmt.Println(mapPath)
-	bytes, err := os.ReadFile(mapPath)
+func GenerateStubs(outputPath string) error {
+	mapPath := outputPath + ".map"
+	data, err := os.ReadFile(mapPath)
 	if err != nil {
-		fmt.Printf("Warning: could not read SourceMap for %s, skipping.\n", mapPath)
-		return
+		return fmt.Errorf("Could not read %s: %w\n", mapPath, err)
 	}
 
-	sm, err := ParseSourceMap(bytes)
-	fmt.Println("AAAH")
-	sm.ParseMappings()
+	sourceMap, err := ParseSourceMap(data)
 	if err != nil {
-		fmt.Printf("Warning: could not parse SourceMap for %s, skipping.\n", mapPath)
-		return
+		return fmt.Errorf("Could not parse SourceMap %s: %w\n", mapPath, err)
 	}
 
-	// Todo, find classes with naive regex and "names" field, then check sourcemap for them
+	data, err = os.ReadFile(outputPath)
+	if err != nil {
+		return fmt.Errorf("Could not read %s: %w\n", mapPath, err)
+	}
+
+	generatedNameRegex := regexp.MustCompile(`-?[_a-zA-Z]+[_a-zA-Z0-9-]*`)
+	nameMap := map[string]string{}
+	for _, vlq := range sourceMap.Mappings {
+		if vlq.NameIndex != -1 {
+			name := sourceMap.Names[vlq.NameIndex]
+			generatedName := string(generatedNameRegex.Find(data[vlq.Column:]))
+			nameMap[name] = generatedName
+		}
+	}
+
+	// TODO: Make php type stubs out of this name map
+
+	return nil
 }
