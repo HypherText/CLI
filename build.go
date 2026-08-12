@@ -135,7 +135,7 @@ func (b *Builder) BuildAssets() {
 	}
 
 	distPath := path.Join(cachePath, "dist")
-	if _, err := os.Stat(distPath); !os.IsExist(err) {
+	if _, err := os.Stat(distPath); os.IsNotExist(err) {
 		os.Mkdir(distPath, 0755)
 	}
 
@@ -155,14 +155,32 @@ func (b *Builder) BuildAssets() {
 		Sourcemap:         api.SourceMapExternal,
 	})
 
-	for _, asset := range assets {
-		fullExt := asset.file[strings.Index(asset.file, "."):]
-		if fullExt == ".module.css" {
-			GenerateStubs(asset, result)
+	fmt.Printf("Found assets %v", assets)
+	for _, file := range result.OutputFiles {
+		fileName := filepath.Base(file.Path)
+		fullExt := fileName[strings.Index(fileName, "."):]
+		fmt.Println(fullExt)
+		if fullExt == ".module.css.map" {
+			GenerateStubs(file.Path, result)
 		}
 	}
 }
 
-func GenerateStubs(asset Asset, result api.BuildResult) {
-	fmt.Println(result.OutputFiles[0].Path)
+func GenerateStubs(mapPath string, result api.BuildResult) {
+	fmt.Println(mapPath)
+	bytes, err := os.ReadFile(mapPath)
+	if err != nil {
+		fmt.Printf("Warning: could not read SourceMap for %s, skipping.\n", mapPath)
+		return
+	}
+
+	sm, err := ParseSourceMap(bytes)
+	fmt.Println("AAAH")
+	sm.ParseMappings()
+	if err != nil {
+		fmt.Printf("Warning: could not parse SourceMap for %s, skipping.\n", mapPath)
+		return
+	}
+
+	// Todo, find classes with naive regex and "names" field, then check sourcemap for them
 }
