@@ -81,7 +81,7 @@ func (b *Builder) GetCachePath() (string, error) {
 
 func (b *Builder) LocateAssets(root string) ([]Asset, error) {
 	assets := []Asset{}
-	importRegex := regexp.MustCompile(`(?s)<\?(?:|=|php) .*?import\( *"(.+?)" *\)`)
+	importRegex := regexp.MustCompile(`(?s)<\?(?:|=|php)\s.*?import\( *"(.+?)" *\);`)
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
